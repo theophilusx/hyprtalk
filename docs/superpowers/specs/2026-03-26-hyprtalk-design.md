@@ -67,7 +67,7 @@ The daemon connects to `.socket2.sock` using `asyncio` and reads lines continuou
 | `openwindow` | `address,workspace,class,title` | "Firefox opened on workspace 2" |
 | `closewindow` | `address` | "Firefox closed" (class resolved from window cache) |
 | `workspace` | `name` | "Workspace 3" |
-| `focusedmon` | `monitorName,workspace` | "Monitor 2, workspace 4" (configurable) |
+| `focusedmon` | `monitorName,workspace` | "Monitor 2, workspace 4" (only if `[events.focused_monitor] enabled = true`) |
 | `movewindow` | `address,workspace` | "Firefox moved to workspace 2" |
 | `fullscreen` | `0` or `1` | "Fullscreen on" / "Fullscreen off" |
 | `urgent` | `address` | "Firefox needs attention" |
@@ -108,7 +108,7 @@ voice = ""        # empty = speechd default
 
 When DND is enabled, the daemon suppresses all speech output. The exception is DND query commands (`dnd`, `dnd-toggle`, `dnd-on`, `dnd-off`), which always speak regardless of DND state.
 
-DND state is stored in `~/.local/share/hyprtalk/dnd` as plain text (`on` or `off`). The query process writes the new state and sends `SIGUSR1` to the daemon (via the PID file). The daemon re-reads the state file on `SIGUSR1`.
+DND state is stored in `~/.local/share/hyprtalk/dnd` as plain text (`on` or `off`). The query process writes the new state and sends `SIGUSR1` to the daemon (via the PID file). The daemon re-reads the state file on `SIGUSR1`. If the PID file does not exist (daemon not running), the state is still written but no signal is sent — the daemon will read the correct state when it next starts.
 
 ### Fallback
 
@@ -137,7 +137,10 @@ announce_title = false      # speak window title
 max_title_length = 40       # truncate titles longer than this (0 = no limit)
 
 [monitor]
-announce_monitor = "auto"   # "always", "never", "auto" (only if >1 monitor detected)
+# Controls whether monitor name/number is included in workspace and focus announcements.
+# Does NOT control the focused_monitor event — that is governed by [events.focused_monitor].
+# "auto" = include monitor info only when more than one monitor is detected at startup.
+announce_monitor = "auto"   # "always", "never", "auto"
 
 [events.focus]
 enabled = true
