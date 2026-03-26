@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from hyprtalk.ipc import get_socket_dir, query, stream_events
+from hyprtalk.ipc import get_socket_dir, query, stream_events, _format_command
 
 
 def test_get_socket_dir_uses_env_var(tmp_path, monkeypatch):
@@ -11,7 +11,7 @@ def test_get_socket_dir_uses_env_var(tmp_path, monkeypatch):
     hypr_dir = tmp_path / "hypr" / fake_sig
     hypr_dir.mkdir(parents=True)
     monkeypatch.setenv("HYPRLAND_INSTANCE_SIGNATURE", fake_sig)
-    with patch("hyprtalk.ipc._HYPR_BASE", tmp_path / "hypr"):
+    with patch("hyprtalk.ipc._hypr_base", return_value=tmp_path / "hypr"):
         result = get_socket_dir()
     assert result == hypr_dir
 
@@ -27,7 +27,7 @@ def test_get_socket_dir_falls_back_to_newest_instance(tmp_path, monkeypatch):
     # Make new_instance newer by touching it
     import time; time.sleep(0.01)
     new.touch()
-    with patch("hyprtalk.ipc._HYPR_BASE", hypr_dir):
+    with patch("hyprtalk.ipc._hypr_base", return_value=hypr_dir):
         result = get_socket_dir()
     assert result == new
 
@@ -41,7 +41,7 @@ async def test_query_sends_command_returns_response():
     with patch("hyprtalk.ipc.open_unix_connection", return_value=(reader, writer)):
         result = await query("activewindow -j", socket_dir=Path("/tmp/test"))
 
-    writer.write.assert_called_once_with(b"activewindow -j")
+    writer.write.assert_called_once_with(b"j/activewindow")
     assert result == '{"address": "0x1"}'
 
 
