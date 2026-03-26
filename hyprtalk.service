@@ -1,0 +1,8 @@
+[Unit]
+Description=Hyprland speech feedback daemon
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/hyprtalk
+Restart=on-failure
+RestartSec=3
