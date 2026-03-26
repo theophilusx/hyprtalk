@@ -34,8 +34,14 @@ async def run_query(
 
     elif command == "workspace":
         resp = await ipc_query("activeworkspace -j", socket_dir)
-        data = json.loads(resp)
-        speaker.say(f"Workspace {data['name']}", priority="high")
+        try:
+            data = json.loads(resp)
+            name = data["name"]
+        except (json.JSONDecodeError, KeyError):
+            log.warning("workspace: unexpected IPC response: %s", resp)
+            speaker.say("Workspace unavailable", priority="high")
+            return
+        speaker.say(f"Workspace {name}", priority="high")
 
     elif command == "windows":
         resp = await ipc_query("clients -j", socket_dir)
@@ -56,7 +62,12 @@ async def run_query(
 
     elif command == "workspaces":
         resp = await ipc_query("workspaces -j", socket_dir)
-        wss = json.loads(resp)
+        try:
+            wss = json.loads(resp)
+        except json.JSONDecodeError:
+            log.warning("workspaces: unexpected IPC response: %s", resp)
+            speaker.say("Workspaces unavailable", priority="normal")
+            return
         if not wss:
             speaker.say("No workspaces", priority="normal")
             return

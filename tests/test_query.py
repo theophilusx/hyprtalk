@@ -56,6 +56,16 @@ async def test_query_workspace_speaks_current():
     assert "3" in text
 
 
+async def test_query_workspace_handles_bad_ipc_response():
+    config = make_config()
+    speaker = make_speaker()
+    with patch("hyprtalk.query.ipc_query", AsyncMock(return_value="error: not available")):
+        await run_query("workspace", config, speaker)
+    speaker.say.assert_called_once()
+    text = speaker.say.call_args[0][0].lower()
+    assert "unavailable" in text or "error" in text or "unknown" in text
+
+
 async def test_query_windows_groups_by_workspace():
     config = make_config()
     speaker = make_speaker()
@@ -91,6 +101,16 @@ async def test_query_workspaces_lists_all():
         await run_query("workspaces", config, speaker)
     text = speaker.say.call_args[0][0]
     assert "1" in text and "2" in text
+
+
+async def test_query_workspaces_handles_bad_ipc_response():
+    config = make_config()
+    speaker = make_speaker()
+    with patch("hyprtalk.query.ipc_query", AsyncMock(return_value="error: not available")):
+        await run_query("workspaces", config, speaker)
+    speaker.say.assert_called_once()
+    text = speaker.say.call_args[0][0].lower()
+    assert "unavailable" in text or "error" in text or "unknown" in text
 
 
 async def test_query_dnd_reports_off(tmp_path):
