@@ -50,6 +50,26 @@ def test_main_query_mode_dispatches_and_exits(tmp_path, monkeypatch):
     mock_speaker.close.assert_called_once()
 
 
+def test_main_creates_default_config_when_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["hyprtalk", "--query", "dnd"])
+    mock_speaker = MagicMock()
+    mock_speaker.dnd = False
+
+    config_path = tmp_path / "hyprtalk.toml"
+
+    with patch("hyprtalk.__main__.CONFIG_PATH", config_path), \
+         patch("hyprtalk.__main__.write_default_config") as mock_write, \
+         patch("hyprtalk.__main__.load_config") as mock_cfg, \
+         patch("hyprtalk.__main__.Speaker", return_value=mock_speaker), \
+         patch("hyprtalk.__main__.run_query", AsyncMock()):
+        mock_cfg.return_value = MagicMock(
+            speech_rate=0, speech_volume=100, speech_voice=""
+        )
+        main()
+
+    mock_write.assert_called_once()
+
+
 async def test_run_daemon_sighup_propagates_config_to_event_loop(tmp_path, monkeypatch):
     """SIGHUP reload must update the config seen by the event loop."""
     import os, asyncio, signal
