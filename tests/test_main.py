@@ -23,6 +23,14 @@ def test_should_show_monitor_auto_multi():
     assert _should_show_monitor("auto", 2) is True
 
 
+def test_should_show_monitor_invalid_logs_warning(caplog):
+    import logging
+    with caplog.at_level(logging.WARNING, logger="hyprtalk.__main__"):
+        result = _should_show_monitor("maybe", 1)
+    assert result is False  # auto with count=1
+    assert any("maybe" in r.message for r in caplog.records)
+
+
 def test_main_query_mode_dispatches_and_exits(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["hyprtalk", "--query", "focus"])
     mock_speaker = MagicMock()

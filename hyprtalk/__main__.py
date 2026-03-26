@@ -129,7 +129,9 @@ def _should_show_monitor(setting: str, monitor_count: int) -> bool:
         return True
     if setting == "never":
         return False
-    return monitor_count > 1  # "auto"
+    if setting != "auto":
+        log.warning("Unknown monitor_announce value %r, treating as 'auto'", setting)
+    return monitor_count > 1
 
 
 if __name__ == "__main__":
