@@ -6,22 +6,43 @@ from asyncio import open_unix_connection
 from pathlib import Path
 from typing import AsyncGenerator
 
-_HYPR_BASE = Path("/tmp/hypr")
+def _hypr_base() -> Path:
+    """Return the Hyprland base socket directory, preferring XDG_RUNTIME_DIR."""
+    xdg = os.environ.get("XDG_RUNTIME_DIR")
+    if xdg:
+        candidate = Path(xdg) / "hypr"
+        if candidate.is_dir():
+            return candidate
+    return Path("/tmp/hypr")
 
 
 def get_socket_dir() -> Path:
     """Return the Hyprland socket directory for the current instance."""
+    base = _hypr_base()
     sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")
     if sig:
-        return _HYPR_BASE / sig
+        return base / sig
     # Fallback: most recently modified instance directory
     try:
-        instances = [p for p in _HYPR_BASE.iterdir() if p.is_dir()]
+        instances = [p for p in base.iterdir() if p.is_dir()]
     except FileNotFoundError:
-        raise RuntimeError("No Hyprland socket directory found at /tmp/hypr")
+        raise RuntimeError(f"No Hyprland socket directory found at {base}")
     if not instances:
-        raise RuntimeError("No Hyprland instances found in /tmp/hypr")
+        raise RuntimeError(f"No Hyprland instances found in {base}")
     return max(instances, key=lambda p: p.stat().st_mtime)
+
+
+def _format_command(command: str) -> bytes:
+    """Encode a command for Hyprland's socket protocol.
+
+    Hyprland ≥0.45 uses the form ``[flags]/command`` where flags precede the
+    slash (e.g. ``j/activewindow`` for JSON output).  Older call sites pass
+    ``command -j``; translate those transparently.
+    """
+    cmd = command.strip()
+    if cmd.endswith(" -j"):
+        cmd = "j/" + cmd[:-3].rstrip()
+    return cmd.encode()
 
 
 async def query(command: str, socket_dir: Path | None = None) -> str:
@@ -30,7 +51,7 @@ async def query(command: str, socket_dir: Path | None = None) -> str:
     socket_path = sd / ".socket.sock"
     reader, writer = await open_unix_connection(str(socket_path))
     try:
-        writer.write(command.encode())
+        writer.write(_format_command(command))
         await writer.drain()
         response = await reader.read(1 << 20)  # 1 MiB max
         return response.decode()
