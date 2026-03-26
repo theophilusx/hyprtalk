@@ -191,12 +191,17 @@ _HANDLERS = {
 
 
 async def run_event_loop(
-    config: Config,
+    config_holder: list,
     speaker: Speaker,
     socket_dir: Path | None = None,
     show_monitor: bool = False,
 ) -> None:
-    """Stream Hyprland events and announce them via speaker."""
+    """Stream Hyprland events and announce them via speaker.
+
+    config_holder is a single-element list so that the SIGHUP handler in
+    _run_daemon can update config_holder[0] and have the change visible here
+    on the next event iteration.
+    """
     cache = WindowCache()
     clients_json = await query("clients -j", socket_dir)
     cache.update_from_clients(clients_json)
@@ -206,6 +211,6 @@ async def run_event_loop(
         if handler is None:
             continue
         try:
-            handler(data, config, speaker, cache, show_monitor)
+            handler(data, config_holder[0], speaker, cache, show_monitor)
         except Exception as e:
             log.warning("Error handling event %s: %s", event_name, e)

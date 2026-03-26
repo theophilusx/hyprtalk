@@ -81,21 +81,23 @@ async def _run_daemon(config) -> None:
         voice=config.speech_voice,
     )
 
+    # Mutable container so SIGHUP handler can update config seen by the event loop
+    config_holder = [config]
+
     loop = asyncio.get_running_loop()
+    main_task: asyncio.Task | None = None
 
     def _shutdown():
         log.info("Shutting down")
-        PID_FILE.unlink(missing_ok=True)
-        speaker.close()
-        loop.stop()
+        if main_task is not None:
+            main_task.cancel()
 
     def _reload_dnd():
         speaker.reload_dnd()
         log.debug("DND state reloaded from file")
 
     def _reload_config():
-        nonlocal config
-        config = load_config()
+        config_holder[0] = load_config()
         log.info("Config reloaded")
 
     loop.add_signal_handler(signal.SIGTERM, _shutdown)
@@ -106,11 +108,14 @@ async def _run_daemon(config) -> None:
     PID_FILE.write_text(str(os.getpid()))
     log.info("hyprtalk daemon started (PID %d)", os.getpid())
 
-    if config.startup_announce_ready:
+    if config_holder[0].startup_announce_ready:
         speaker.say("hyprtalk ready", priority="normal")
 
+    main_task = asyncio.current_task()
     try:
-        await run_event_loop(config, speaker, socket_dir, show_monitor)
+        await run_event_loop(config_holder, speaker, socket_dir, show_monitor)
+    except asyncio.CancelledError:
+        log.info("Event loop cancelled")
     except Exception as e:
         log.error("Event loop exited: %s", e)
     finally:

@@ -236,7 +236,7 @@ async def test_run_event_loop_handles_events_until_eof():
 
     with patch("hyprtalk.events.stream_events", fake_stream_events), \
          patch("hyprtalk.events.query", AsyncMock(return_value="[]")):
-        await run_event_loop(config, speaker, socket_dir=Path("/tmp/test"))
+        await run_event_loop([config], speaker, socket_dir=Path("/tmp/test"))
 
     assert speaker.say.call_count == 2
 
@@ -251,7 +251,7 @@ async def test_run_event_loop_ignores_unknown_events():
 
     with patch("hyprtalk.events.stream_events", fake_stream_events), \
          patch("hyprtalk.events.query", AsyncMock(return_value="[]")):
-        await run_event_loop(config, speaker, socket_dir=Path("/tmp/test"))
+        await run_event_loop([config], speaker, socket_dir=Path("/tmp/test"))
 
     assert speaker.say.call_count == 1  # only workspace event
 
@@ -269,7 +269,7 @@ async def test_run_event_loop_populates_cache_from_clients():
 
     with patch("hyprtalk.events.stream_events", fake_stream_events), \
          patch("hyprtalk.events.query", AsyncMock(return_value=clients)):
-        await run_event_loop(config, speaker, socket_dir=Path("/tmp/test"))
+        await run_event_loop([config], speaker, socket_dir=Path("/tmp/test"))
 
     text = speaker.say.call_args[0][0]
     assert "firefox" in text.lower()
