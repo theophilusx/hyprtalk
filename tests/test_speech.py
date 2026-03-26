@@ -28,9 +28,9 @@ def test_say_maps_priority_to_speechd_constant(mock_speechd, tmp_path):
     speaker = make_speaker(mock_speechd, tmp_path)
     speaker.say("test", priority="critical")
     mock_client = mock_speechd.Client.return_value
-    # set_priority should be called with the speechd PriorityId constant for IMPORTANT
+    # set_priority should be called with the speechd Priority constant for IMPORTANT
     args = mock_client.set_priority.call_args[0]
-    assert args[0] == mock_speechd.PriorityId.IMPORTANT
+    assert args[0] == mock_speechd.Priority.IMPORTANT
 
 
 def test_say_suppressed_when_dnd_on(mock_speechd, tmp_path):
