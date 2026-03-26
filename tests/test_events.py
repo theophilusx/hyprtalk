@@ -220,3 +220,56 @@ def test_on_urgent_announces_class_from_cache():
     _on_urgent("0x1", config, speaker, cache, show_monitor=False)
     text = speaker.say.call_args[0][0]
     assert "discord" in text.lower()
+
+
+from unittest.mock import AsyncMock, patch
+from hyprtalk.events import run_event_loop
+
+
+async def test_run_event_loop_handles_events_until_eof():
+    config = make_config()
+    speaker = make_speaker()
+
+    async def fake_stream_events(socket_dir=None):
+        yield ("workspace", "2")
+        yield ("activewindow", "kitty,terminal")
+
+    with patch("hyprtalk.events.stream_events", fake_stream_events), \
+         patch("hyprtalk.events.query", AsyncMock(return_value="[]")):
+        await run_event_loop(config, speaker, socket_dir=Path("/tmp/test"))
+
+    assert speaker.say.call_count == 2
+
+
+async def test_run_event_loop_ignores_unknown_events():
+    config = make_config()
+    speaker = make_speaker()
+
+    async def fake_stream_events(socket_dir=None):
+        yield ("unknownevent", "somedata")
+        yield ("workspace", "5")
+
+    with patch("hyprtalk.events.stream_events", fake_stream_events), \
+         patch("hyprtalk.events.query", AsyncMock(return_value="[]")):
+        await run_event_loop(config, speaker, socket_dir=Path("/tmp/test"))
+
+    assert speaker.say.call_count == 1  # only workspace event
+
+
+async def test_run_event_loop_populates_cache_from_clients():
+    config = make_config()
+    speaker = make_speaker()
+    clients = json.dumps([
+        {"address": "0x1", "class": "firefox", "title": "GitHub", "workspace": {"name": "1"}}
+    ])
+
+    async def fake_stream_events(socket_dir=None):
+        # closewindow uses cache populated at startup
+        yield ("closewindow", "0x1")
+
+    with patch("hyprtalk.events.stream_events", fake_stream_events), \
+         patch("hyprtalk.events.query", AsyncMock(return_value=clients)):
+        await run_event_loop(config, speaker, socket_dir=Path("/tmp/test"))
+
+    text = speaker.say.call_args[0][0]
+    assert "firefox" in text.lower()

@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from hyprtalk.config import Config
-    from hyprtalk.speech import Speaker
+from hyprtalk.config import Config
+from hyprtalk.ipc import query, stream_events
+from hyprtalk.speech import Speaker
 
 log = logging.getLogger(__name__)
 
@@ -189,3 +188,24 @@ _HANDLERS = {
 # data. The `focusedmon` event (when enabled) is the primary way monitor
 # context is announced. Including monitor info in other events would require
 # tracking additional state and is left for a future iteration.
+
+
+async def run_event_loop(
+    config: Config,
+    speaker: Speaker,
+    socket_dir: Path | None = None,
+    show_monitor: bool = False,
+) -> None:
+    """Stream Hyprland events and announce them via speaker."""
+    cache = WindowCache()
+    clients_json = await query("clients -j", socket_dir)
+    cache.update_from_clients(clients_json)
+
+    async for event_name, data in stream_events(socket_dir):
+        handler = _HANDLERS.get(event_name)
+        if handler is None:
+            continue
+        try:
+            handler(data, config, speaker, cache, show_monitor)
+        except Exception as e:
+            log.warning("Error handling event %s: %s", event_name, e)
