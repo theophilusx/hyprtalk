@@ -1,4 +1,5 @@
 import sys
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from hyprtalk.__main__ import _should_show_monitor, main
@@ -82,3 +83,32 @@ async def test_run_daemon_sighup_propagates_config_to_event_loop(tmp_path, monke
     before, after = seen_configs[0]
     assert before is base_config
     assert after is new_config
+
+
+async def test_run_daemon_monitor_detection_handles_socket_error(tmp_path, monkeypatch):
+    """Socket error during monitor query must not crash daemon startup."""
+    from hyprtalk.__main__ import _run_daemon
+
+    config = MagicMock()
+    config.speech_rate = 0
+    config.speech_volume = 100
+    config.speech_voice = ""
+    config.startup_announce_ready = False
+    config.monitor_announce = "auto"
+
+    async def fake_event_loop(config_holder, speaker, socket_dir, show_monitor):
+        assert show_monitor is False  # auto with count=1 → False
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr("hyprtalk.__main__.run_event_loop", fake_event_loop)
+    monkeypatch.setattr("hyprtalk.__main__.load_config", MagicMock(return_value=config))
+    monkeypatch.setattr("hyprtalk.__main__.get_socket_dir", MagicMock(return_value=None))
+    monkeypatch.setattr(
+        "hyprtalk.__main__.ipc_query",
+        AsyncMock(side_effect=OSError("socket not found")),
+    )
+    monkeypatch.setattr("hyprtalk.__main__.Speaker", MagicMock(return_value=MagicMock()))
+    monkeypatch.setattr("hyprtalk.__main__.DATA_DIR", tmp_path)
+    monkeypatch.setattr("hyprtalk.__main__.PID_FILE", tmp_path / "hyprtalk.pid")
+
+    await _run_daemon(config)

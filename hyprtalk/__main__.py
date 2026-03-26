@@ -66,11 +66,12 @@ async def _run_daemon(config) -> None:
     socket_dir = get_socket_dir()
 
     # Detect monitor count for announce_monitor = "auto"
-    monitors_json = await ipc_query("monitors -j", socket_dir)
     try:
+        monitors_json = await ipc_query("monitors -j", socket_dir)
         monitors = json.loads(monitors_json)
         monitor_count = len(monitors)
-    except (json.JSONDecodeError, TypeError):
+    except Exception as e:
+        log.warning("Could not query monitors (defaulting to 1): %s", e)
         monitor_count = 1
     show_monitor = _should_show_monitor(config.monitor_announce, monitor_count)
 
