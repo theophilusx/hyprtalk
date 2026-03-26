@@ -27,6 +27,7 @@ hyprtalk covers the **compositor layer only** — spoken feedback within individ
 - **speech-dispatcher** 0.12.1+ — `sudo dnf install speech-dispatcher` (Fedora) or equivalent
 - **Python** 3.11+
 - **uv** — see [docs.astral.sh/uv](https://docs.astral.sh/uv/) for install instructions
+- **python3-speechd** *(optional)* — `sudo dnf install python3-speechd` (Fedora) or equivalent. Provides the native speech-dispatcher Python bindings for better integration; falls back to `spd-say` if not installed.
 
 ---
 
@@ -40,23 +41,6 @@ uv tool install .
 
 This places the `hyprtalk` binary at `~/.local/bin/hyprtalk`. Ensure `~/.local/bin` is on your `PATH`.
 
-**If speechd fails to install** (it requires the speech-dispatcher C library), install the system package instead:
-
-```bash
-sudo dnf install python3-speechd
-```
-
-Then add to `pyproject.toml` and reinstall:
-
-```toml
-[tool.uv]
-system-site-packages = true
-```
-
-```bash
-uv tool install .
-```
-
 Verify the install:
 
 ```bash
@@ -64,6 +48,16 @@ hyprtalk --query focus
 ```
 
 This should speak the name of your currently focused window (requires Hyprland to be running).
+
+### Reinstalling after source changes
+
+`uv tool install . --force` reuses the cached wheel if the version number hasn't changed. To force a rebuild from source:
+
+```bash
+uv tool install . --force --no-cache
+```
+
+If another `uv` process is running (e.g. `uv run` in another project), the cache lock may cause a 300 s timeout — `--no-cache` bypasses the lock entirely and is safe to use in that situation.
 
 ---
 
