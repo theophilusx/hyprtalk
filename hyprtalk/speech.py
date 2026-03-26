@@ -16,7 +16,24 @@ PRIORITY_MAP: dict[str, str] = {
 try:
     import speechd as _speechd
 except ImportError:
+    # speechd (python3-speechd on Fedora/Debian) is a system-only package not
+    # available on PyPI.  When hyprtalk runs inside an isolated uv tool
+    # environment, sys.base_prefix still points to the system Python root, so
+    # we can locate the system site-packages and retry the import from there.
+    import sys as _sys
     _speechd = None  # type: ignore
+    if _sys.prefix != _sys.base_prefix:
+        _ver = f"{_sys.version_info.major}.{_sys.version_info.minor}"
+        for _p in (
+            f"{_sys.base_prefix}/lib/python{_ver}/site-packages",
+            f"{_sys.base_prefix}/lib64/python{_ver}/site-packages",
+        ):
+            if _p not in _sys.path:
+                _sys.path.append(_p)
+        try:
+            import speechd as _speechd  # type: ignore
+        except ImportError:
+            pass
 
 
 class Speaker:
@@ -90,7 +107,7 @@ class Speaker:
             return
         spd_priority = PRIORITY_MAP.get(priority, "TEXT")
         try:
-            self._client.set_priority(getattr(_speechd.PriorityId, spd_priority))
+            self._client.set_priority(getattr(_speechd.Priority, spd_priority))
             self._client.say(text)
         except Exception as e:
             log.error("speechd say failed: %s — falling back to spd-say", e)
