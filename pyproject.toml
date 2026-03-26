@@ -16,8 +16,10 @@ build-backend = "hatchling.build"
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--cov=hyprtalk --cov-report=term-missing --cov-fail-under=84"
 
