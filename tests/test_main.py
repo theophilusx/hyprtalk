@@ -140,3 +140,32 @@ async def test_run_daemon_monitor_detection_handles_socket_error(tmp_path, monke
     monkeypatch.setattr("hyprtalk.__main__.PID_FILE", tmp_path / "hyprtalk.pid")
 
     await _run_daemon(config)
+
+
+async def test_run_daemon_announces_ready_on_startup(tmp_path, monkeypatch):
+    """When startup_announce_ready=True, daemon speaks 'hyprtalk ready' at start."""
+    from hyprtalk.__main__ import _run_daemon
+
+    config = MagicMock()
+    config.speech_rate = 0
+    config.speech_volume = 100
+    config.speech_voice = ""
+    config.startup_announce_ready = True
+    config.monitor_announce = "never"
+
+    mock_speaker = MagicMock()
+
+    async def fake_event_loop(config_holder, speaker, socket_dir, show_monitor):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr("hyprtalk.__main__.run_event_loop", fake_event_loop)
+    monkeypatch.setattr("hyprtalk.__main__.load_config", MagicMock(return_value=config))
+    monkeypatch.setattr("hyprtalk.__main__.get_socket_dir", MagicMock(return_value=None))
+    monkeypatch.setattr("hyprtalk.__main__.ipc_query", AsyncMock(return_value="[]"))
+    monkeypatch.setattr("hyprtalk.__main__.Speaker", MagicMock(return_value=mock_speaker))
+    monkeypatch.setattr("hyprtalk.__main__.DATA_DIR", tmp_path)
+    monkeypatch.setattr("hyprtalk.__main__.PID_FILE", tmp_path / "hyprtalk.pid")
+
+    await _run_daemon(config)
+
+    mock_speaker.say.assert_called_with("hyprtalk ready", priority="normal")

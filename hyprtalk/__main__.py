@@ -88,12 +88,12 @@ async def _run_daemon(config) -> None:
     loop = asyncio.get_running_loop()
     main_task: asyncio.Task | None = None
 
-    def _shutdown():
+    def _shutdown():  # pragma: no cover
         log.info("Shutting down")
         if main_task is not None:
             main_task.cancel()
 
-    def _reload_dnd():
+    def _reload_dnd():  # pragma: no cover
         speaker.reload_dnd()
         log.debug("DND state reloaded from file")
 
@@ -134,5 +134,5 @@ def _should_show_monitor(setting: str, monitor_count: int) -> bool:
     return monitor_count > 1
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
