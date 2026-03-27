@@ -273,3 +273,116 @@ async def test_run_event_loop_populates_cache_from_clients():
 
     text = speaker.say.call_args[0][0]
     assert "firefox" in text.lower()
+
+
+# --- Disabled event tests (covers early-return branches) ---
+
+def test_on_openwindow_disabled_does_not_speak():
+    config = make_config()
+    config.events["open_window"].enabled = False
+    speaker = make_speaker()
+    cache = WindowCache()
+    _on_openwindow("0x1,1,kitty,terminal", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_not_called()
+
+
+def test_on_openwindow_malformed_data_returns_early():
+    """Less than 3 comma-separated parts — handler must return without speaking."""
+    config = make_config()
+    speaker = make_speaker()
+    cache = WindowCache()
+    _on_openwindow("0x1,1", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_not_called()
+
+
+def test_on_closewindow_disabled_does_not_speak():
+    config = make_config()
+    config.events["close_window"].enabled = False
+    speaker = make_speaker()
+    cache = WindowCache()
+    cache.add(WindowInfo("0x1", "kitty", "term", "1"))
+    _on_closewindow("0x1", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_not_called()
+
+
+def test_on_workspace_disabled_does_not_speak():
+    config = make_config()
+    config.events["workspace"].enabled = False
+    speaker = make_speaker()
+    cache = WindowCache()
+    _on_workspace("3", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_not_called()
+
+
+def test_on_movewindow_disabled_does_not_speak():
+    config = make_config()
+    config.events["move_window"].enabled = False
+    speaker = make_speaker()
+    cache = WindowCache()
+    cache.add(WindowInfo("0x1", "firefox", "GitHub", "1"))
+    _on_movewindow("0x1,3", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_not_called()
+
+
+def test_on_fullscreen_disabled_does_not_speak():
+    config = make_config()
+    config.events["fullscreen"].enabled = False
+    speaker = make_speaker()
+    cache = WindowCache()
+    _on_fullscreen("1", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_not_called()
+
+
+def test_on_urgent_disabled_does_not_speak():
+    config = make_config()
+    config.events["urgent"].enabled = False
+    speaker = make_speaker()
+    cache = WindowCache()
+    cache.add(WindowInfo("0x1", "discord", "Discord", "2"))
+    _on_urgent("0x1", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_not_called()
+
+
+# --- _on_focusedmon (entirely uncovered) ---
+
+def test_on_focusedmon_speaks_monitor_and_workspace():
+    config = make_config()
+    speaker = make_speaker()
+    cache = WindowCache()
+    _on_focusedmon("HDMI-A-1,3", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_called_once()
+    text = speaker.say.call_args[0][0]
+    assert "HDMI-A-1" in text
+    assert "3" in text
+
+
+def test_on_focusedmon_disabled_does_not_speak():
+    config = make_config()
+    config.events["focused_monitor"].enabled = False
+    speaker = make_speaker()
+    cache = WindowCache()
+    _on_focusedmon("HDMI-A-1,3", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_not_called()
+
+
+# --- run_event_loop exception handler ---
+
+async def test_run_event_loop_logs_warning_when_handler_raises():
+    """When a handler raises, run_event_loop must log a warning and continue."""
+    config = make_config()
+    speaker = make_speaker()
+
+    async def fake_stream_events(socket_dir=None):
+        yield ("workspace", "bad-data")
+
+    def crashing_handler(*args, **kwargs):
+        raise RuntimeError("handler crashed")
+
+    with patch("hyprtalk.events.stream_events", fake_stream_events), \
+         patch("hyprtalk.events.query", AsyncMock(return_value="[]")), \
+         patch.dict("hyprtalk.events._HANDLERS", {"workspace": crashing_handler}), \
+         patch("hyprtalk.events.log") as mock_log:
+        await run_event_loop([config], speaker, socket_dir=Path("/tmp/test"))
+
+    mock_log.warning.assert_called()
+    speaker.say.assert_not_called()
