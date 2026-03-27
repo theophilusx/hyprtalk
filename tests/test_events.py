@@ -386,3 +386,39 @@ async def test_run_event_loop_logs_warning_when_handler_raises():
 
     mock_log.warning.assert_called()
     speaker.say.assert_not_called()
+
+
+def test_on_closewindow_unknown_address():
+    """When address is not in cache, handler falls back to 'window' as class name."""
+    config = make_config()
+    speaker = make_speaker()
+    cache = WindowCache()
+    # address "0xdeadbeef" is not in the cache
+    _on_closewindow("0xdeadbeef", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_called_once()
+    text = speaker.say.call_args[0][0]
+    assert "window" in text.lower()
+
+
+def test_on_movewindow_unknown_address():
+    """When address is not in cache, handler falls back to 'window' as class name."""
+    config = make_config()
+    speaker = make_speaker()
+    cache = WindowCache()
+    # address "0xdeadbeef" is not in cache
+    _on_movewindow("0xdeadbeef,3", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_called_once()
+    text = speaker.say.call_args[0][0]
+    assert "window" in text.lower()
+
+
+def test_on_urgent_unknown_address():
+    """When address is not in cache, handler falls back to 'window' as class name."""
+    config = make_config()
+    speaker = make_speaker()
+    cache = WindowCache()
+    # address "0xdeadbeef" is not in cache
+    _on_urgent("0xdeadbeef", config, speaker, cache, show_monitor=False)
+    speaker.say.assert_called_once()
+    text = speaker.say.call_args[0][0]
+    assert "window" in text.lower()
